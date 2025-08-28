@@ -60,6 +60,10 @@ intents:
       desc: "Highlight key moments"
     - name: "media.quotes"
       desc: "Extract notable quotes"
+    - name: "media.ingest_url"
+      desc: "Ingest media from URL"
+    - name: "media.translate_only"
+      desc: "Translate media without summary"
     - name: "link.screenshot"
       desc: "Capture screenshot of a webpage"
   image_intents:
