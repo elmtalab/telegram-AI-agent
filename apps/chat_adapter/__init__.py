@@ -14,12 +14,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List
 
 from lib.contracts.envelope import MessageEnvelope
-from lib.config.yaml_loader import load_yaml
+from lib.config.chat_adapter_loader import AdapterConfig, load_chat_adapter_config
 
-from .service import normalize_message
+from .service import ChatMemory, normalize_message
 
 
 @dataclass
@@ -29,21 +29,45 @@ class ChatAdapter:
     Parameters
     ----------
     orchestrator:
-        Instance of :class:`apps.orchestrator.Orchestrator` that turns normalised
-        envelopes into AOR structures.  The object is kept deliberately small so
-        the focus of the exercises can remain on the wiring rather than complex
-        business logic.
+        Instance of :class:`apps.orchestrator.Orchestrator` that turns
+        normalised envelopes into AOR structures.  The object is kept
+        deliberately small so the focus of the exercises can remain on the
+        wiring rather than complex business logic.
     """
 
     orchestrator: Any
-    config: Any | None = field(default=None)
+    config: AdapterConfig | None = field(default=None)
     config_path: str = "config/chat_adapter.yaml"
 
     def __post_init__(self) -> None:
         if self.config is None and Path(self.config_path).exists():
-            self.config = load_yaml(self.config_path)
+            self.config = load_chat_adapter_config(self.config_path)
+        self._memory: Dict[str, ChatMemory] = {}
 
-    def handle_user_update(self, chat_id: str, user_id: str, *, text: str = "") -> Any:
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _mem(self, chat_id: str) -> ChatMemory:
+        mem = self._memory.get(chat_id)
+        if mem is None:
+            mem = self._memory[chat_id] = ChatMemory()
+        ttl = int(self.config.sticky.get("ttl_turns", 0)) if self.config else 0
+        mem.decay(ttl)
+        return mem
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def handle_user_update(
+        self,
+        chat_id: str,
+        user_id: str,
+        *,
+        text: str = "",
+        attachments: List[Dict[str, Any]] | None = None,
+        locale: str | None = None,
+        timezone: str | None = None,
+    ) -> Any:
         """Normalise the message and forward it to the orchestrator.
 
         The return value is whatever structure the orchestrator produces.  In
@@ -52,10 +76,16 @@ class ChatAdapter:
         orchestrator result directly.
         """
 
-        envelope_dict = normalize_message({"text": text})
-        envelope = MessageEnvelope(message=envelope_dict.get("text", ""))
-        return self.orchestrator.process_user_input(chat_id, envelope.message)
+        mem = self._mem(chat_id)
+        msg = {
+            "text": text,
+            "attachments": attachments or [],
+            "locale": locale,
+            "timezone": timezone,
+        }
+        envelope_dict = normalize_message(msg, self.config, mem)
+        envelope = MessageEnvelope(**envelope_dict)
+        return self.orchestrator.process_user_input(chat_id, envelope.text)
 
 
 __all__ = ["ChatAdapter"]
-
