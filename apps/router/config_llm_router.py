@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Optional
 
 from lib.contracts.envelope import Attachment, MessageEnvelope
 from lib.contracts.router_output import RouterOutput
+from .models import PlanOut, DecideOut, RouterState
 
 # ---------------------------------------------------------------------------
 # Helper functions
