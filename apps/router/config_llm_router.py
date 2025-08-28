@@ -21,13 +21,154 @@ useful stand‑in for tests and demonstrations.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 import os
 import re
-from typing import Any, Dict, List, Optional
+import time
+import uuid
+from copy import deepcopy
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-from lib.contracts.envelope import Attachment, MessageEnvelope
 from lib.contracts.router_output import RouterOutput
-from .models import PlanOut, DecideOut, RouterState
+from .models import PlanOut, DecideOut, RouterState, SlotPack, SlotSpan
+from lib.utils.helpers import (
+    sanitize_user_text,
+    extract_urls,
+    detect_provider_from_url,
+    _imperative_hits,
+    _strip_quoted,
+    _parse_timecode,
+    _detect_lang_to,
+    _is_missing_val,
+)
+
+# ---------------------------------------------------------------------------
+# Lightweight stand‑ins for optional third‑party dependencies
+# ---------------------------------------------------------------------------
+
+# ``semantic_router`` and ``langgraph`` are heavy optional dependencies in the
+# real project.  The kata environment does not provide them so we fall back to
+# simple placeholders that satisfy the minimal API surface used by the router.
+
+_HAS_SEMANTIC_ROUTER = False
+
+try:  # pragma: no cover - the package is not expected to be available
+    from langgraph.graph import StateGraph, END  # type: ignore
+    _HAS_LANGGRAPH = True
+except Exception:  # pragma: no cover - provide a tiny local substitute
+    _HAS_LANGGRAPH = True
+
+    class StateGraph:
+        def __init__(self, state_cls):
+            self.nodes: Dict[str, Any] = {}
+            self.edges: Dict[str, List[str]] = {}
+            self.entry: Optional[str] = None
+
+        def add_node(self, name: str, func):
+            self.nodes[name] = func
+
+        def set_entry_point(self, name: str) -> None:
+            self.entry = name
+
+        def add_edge(self, a: str, b: Any) -> None:
+            self.edges.setdefault(a, []).append(b)
+
+        def compile(self):
+            nodes = self.nodes
+            edges = self.edges
+            entry = self.entry
+
+            class _Compiled:
+                def invoke(self, state: Dict[str, Any]):
+                    cur = entry
+                    st = dict(state)
+                    while cur is not None:
+                        fn = nodes[cur]
+                        res = fn(st) or {}
+                        st.update(res)
+                        nxt = edges.get(cur, [])
+                        if not nxt:
+                            break
+                        nxt_name = nxt[0]
+                        if nxt_name is END:
+                            break
+                        cur = nxt_name
+                    return st
+
+            return _Compiled()
+
+    END = object()
+
+
+class TokenCostMeter:
+    """Minimal token/cost tracker used by the heuristic router."""
+
+    def __init__(self, model: str = "", prices_by_model: Optional[Dict[str, Any]] = None):
+        self.model = model
+        self.prices = prices_by_model or {}
+        self.tokens = 0
+
+    def reset(self) -> None:
+        self.tokens = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"tokens": self.tokens}
+
+
+class UsageCallback:
+    """No-op callback used to mirror the interface of langchain callbacks."""
+
+    def __init__(self, meter: TokenCostMeter, tag: str):
+        self.meter = meter
+        self.tag = tag
+
+    def __call__(self, *args, **kwargs) -> None:  # pragma: no cover - side effects not required
+        pass
+
+
+class _HeuristicStructured:
+    """Return default instances for structured LLM output."""
+
+    def __init__(self, model_cls):
+        self.model_cls = model_cls
+
+    def invoke(self, messages, config=None):
+        if self.model_cls is PlanOut:
+            return PlanOut(pipeline=[], clarify=None)
+        if self.model_cls is DecideOut:
+            return DecideOut(domain="core", confidence=0.5, reason="fallback")
+        if self.model_cls is SlotPack:
+            return SlotPack(items=[])
+        return self.model_cls()  # type: ignore[call-arg]
+
+
+class _HeuristicLLM:
+    """Tiny stand-in for ChatGPT style models."""
+
+    def with_structured_output(self, model_cls, method="json_schema", strict: bool = True):
+        return _HeuristicStructured(model_cls)
+
+
+try:  # pragma: no cover - optional in tests
+    from langchain_openai import ChatOpenAI  # type: ignore
+    from langchain.schema import HumanMessage, SystemMessage  # type: ignore
+except Exception:  # pragma: no cover
+    ChatOpenAI = None
+    HumanMessage = None
+    SystemMessage = None
+
+
+# Simple envelope used internally by the heuristic router
+@dataclass
+class MessageEnvelope:
+    user_id: str
+    chat_id: str
+    text: str = ""
+    media_type: str = "none"
+    file_id: Optional[str] = None
+    urls: List[str] = field(default_factory=list)
+    lang_hint: str = "fa"
+    is_group: bool = False
 
 # ---------------------------------------------------------------------------
 # Helper functions
@@ -76,6 +217,11 @@ def _dp_snip(text: str, n: int = 240) -> str:
     t = (text or "").strip()
     return t if len(t) <= n else (t[:n] + "…")
 
+
+def _ns(intent: str) -> str:
+    """Return namespace prefix of an intent string (text.translate → text)."""
+    return intent.split(".", 1)[0] if intent else ""
+
 # ---------------------------------------------------------------------------
 # Data structures used by the simplified router
 # ---------------------------------------------------------------------------
@@ -83,11 +229,33 @@ def _dp_snip(text: str, n: int = 240) -> str:
 
 @dataclass
 class SessionState:
-    """Tiny session object used to keep track of the previous turn."""
+    """Session state persisted between router turns.
 
+    The real system tracks a rich set of fields.  For this kata we keep only
+    the pieces accessed by :class:`ConfigLLMRouter` so that a conversation can
+    progress across turns without pulling in external storage layers.
+    """
+
+    turn_no: int = 0
+    last_domain: Optional[str] = None
+    pipeline: List[Dict[str, Any]] = field(default_factory=list)
+    current_node_idx: int = 0
+    user_prompts: List[str] = field(default_factory=list)
+    entity_bag: Dict[str, Any] = field(default_factory=dict)
     last_file: Optional[str] = None
     last_url: Optional[str] = None
     last_intent: Optional[str] = None
+
+
+@dataclass
+class NodeStatus:
+    task_id: str
+    intent: str
+    entities: Dict[str, Any]
+    bind: Dict[str, Any]
+    confidence: float
+    missing: List[str]
+    ready: bool
 
 
 # ---------------------------------------------------------------------------
@@ -223,7 +391,22 @@ class ConfigLLMRouter:
             intents_list = routes["routes"]
         elif "intents" in routes and isinstance(routes["intents"], dict):
             for name, io in routes["intents"].items():
-                intents_list.append({"name": name, "required": list(io.get("required", [])), "optional": list(io.get("optional", [])), "expected_output": io.get("expected_output", {})})
+                if isinstance(io, dict):
+                    intents_list.append({
+                        "name": name,
+                        "required": list(io.get("required", [])),
+                        "optional": list(io.get("optional", [])),
+                        "expected_output": io.get("expected_output", {}),
+                    })
+                elif isinstance(io, list):
+                    for item in io:
+                        if isinstance(item, dict) and item.get("name"):
+                            intents_list.append({
+                                "name": item["name"],
+                                "required": [],
+                                "optional": [],
+                                "expected_output": {},
+                            })
 
         self.intent_specs: Dict[str, Dict[str, Any]] = {}
         self.intent_outputs: Dict[str, Dict[str, Any]] = {}
