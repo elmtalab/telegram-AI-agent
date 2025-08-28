@@ -1,1 +1,130 @@
-service: dispatch_controller
+dispatch:
+  name: "Dispatch Controller"
+  version: "1.2.0"
+  runtime:
+    engine: "python-service"
+    timeout_ms: 2500
+    trace_enabled: true
+    metrics_enabled: true
+    clock: "utc"
+
+  inputs_contract: "DispatchInput@1"
+  outputs_contract: "DispatchDecision@1"
+
+  behavior:
+    attempt_auto_slot_enrich_on_ask: true
+    respect_orchestrator_ask: false
+    max_slotfill_rounds: 1
+    min_field_confidence: 0.70
+    min_overall_confidence: 0.65
+    fail_closed_on_policy_violation: true
+    low_risk_side_effects_auto_execute: true
+    locale_fallback: "en-US"
+
+  preflight:
+    checks:
+      - name: "domain_allowed"
+      - name: "agent_capable"
+      - name: "resource_presence"
+      - name: "resource_type_match"
+      - name: "quota_caps"
+      - name: "security_labels_ok"
+    capability_matrix_uri: "s3://router/capability_matrix.yaml"
+    caps:
+      stt_max_seconds: 1800
+      media_max_bytes: 500000000
+      vision_max_pixels: 268435456
+    policy:
+      allow_domains: ["core","media","images","video","ocr","qr","table","schedule","network","finance","music"]
+      deny_domains: []
+    filetype_hints:
+      image: ["image/jpeg","image/png","image/webp"]
+      audio: ["audio/mpeg","audio/wav","audio/flac","audio/aac"]
+      video: ["video/mp4","video/webm","video/quicktime"]
+      document: ["application/pdf","image/png","image/jpeg"]
+
+  slotfill_llm:
+    enabled: true
+    model: ""
+    temperature: 0.0
+    max_tokens: 384
+    max_calls_per_turn: 2
+    no_regex_validation: true
+    prompts:
+      extract_ref: "slotfill_extract_v1"
+      verify_ref: "slotfill_verify_v1"
+    allowlist_intents:
+      - "video.thumbnail"
+      - "video.gif"
+      - "music.send"
+      - "music.playlist.add"
+      - "music.playlist.remove"
+      - "sched.book"
+      - "sched.reschedule"
+      - "finance.fx.convert"
+      - "finance.crypto.ticker"
+    denylist_fields: []
+    use_memory:
+      short_ctx_turns: 4
+      include_entity_bag: true
+      include_last_file_url: true
+      include_last_intent: true
+    acceptance:
+      per_field_min_confidence:
+        recipient: 0.80
+        booking_ref: 0.85
+      overall_min_confidence: 0.65
+      verify_required: true
+      resolve_names_for_ids:
+        - "playlist_id<-playlist_name"
+        - "track_source<-last_file_or_url"
+
+  safety:
+    sensitive_intents:
+      require_confirm:
+        - "files.delete"
+        - "controls.set_quiet_hours"
+        - "controls.mute_24h"
+        - "proxy.import"
+      double_confirm:
+        - "files.delete"
+        - "proxy.import"
+      low_risk_auto:
+        - "music.send"
+        - "video.thumbnail"
+        - "video.gif"
+        - "doc.ocr"
+    user_confirmation:
+      enabled: true
+      prompt_ref: "confirm_action_v1"
+      accept_keywords:
+        en: ["yes","confirm","go ahead","do it","please proceed"]
+        fa: ["بله","باشه","ادامه بده","انجام بده"]
+      decline_keywords:
+        en: ["no","cancel","stop","abort"]
+        fa: ["نه","لغو","توقف"]
+      require_exact_phrase_for_double_confirm:
+        phrase_en: "CONFIRM"
+        phrase_fa: "تایید"
+
+  decisions:
+    ask_when_missing_after_slotfill: true
+    ask_prompt_ref: "ask_missing_v1"
+    ask_style_by_locale:
+      en-US: { tone: "friendly", register: "neutral" }
+      fa-IR: { tone: "formal", register: "polite" }
+    enqueue_when_ready: true
+    attach_agent_family_from: "task_spec_or_override"
+    enqueue_payload:
+      include: ["aor_id","idempotency_key","agent","task","inputs","session"]
+      redact_pii: true
+      ttl_s: 1800
+
+  observability:
+    emit:
+      preflight: ["checks_passed","cap_hits","resource_binds"]
+      slotfill: ["missing_before","extracted","verified","confidences","missing_after"]
+      safety: ["sensitive_intent","confirm_needed","confirm_state"]
+      decision: ["action","why","agent","queue_id"]
+    redact_pii: true
+    retain_days: 14

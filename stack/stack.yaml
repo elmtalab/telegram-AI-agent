@@ -1,1 +1,215 @@
-services: []
+stack:
+  name: "assist-stack"
+  version: "2025.03"
+  environment: "prod"
+  region: "eu-west-1"
+  release_id: "${GIT_SHA}"
+  clock: "utc"
+
+  schemas:
+    chat_adapter: "ChatAdapterConfig@1"
+    router: "RouterConfig@1"
+    orchestrator: "AOROrchestratorConfig@1"
+    dispatch_controller: "DispatchControllerConfig@1"
+    simple_dispatcher: "SimpleDispatcherConfig@1"
+    route_registry: "RouteRegistry@1"
+    prompts: "PromptsPack@1"
+    capability_matrix: "CapabilityMatrix@1"
+    task_specs: "TaskSpecs@1"
+    safety_bundle: "OPABundle@1"
+    pii_rules: "PIIPolicy@1"
+    semantic_corpus: "SemanticCorpus@1"
+
+  uris:
+    configs:
+      chat_adapter: "s3://assist/config/v1/chat_adapter.yaml"
+      router: "s3://assist/config/v1/router.yaml"
+      orchestrator: "s3://assist/config/v1/orchestrator.yaml"
+      dispatch_controller: "s3://assist/config/v1/dispatch_controller.yaml"
+      simple_dispatcher: "s3://assist/config/v1/simple_dispatcher.yaml"
+    registries:
+      route_registry: "s3://assist/registry/v3/route_registry.yaml"
+      capability_matrix: "s3://assist/registry/v2/capability_matrix.yaml"
+      semantic_corpus: "s3://assist/registry/v1/semantic_corpus.yaml"
+    prompts:
+      pack: "s3://assist/prompts/v4/prompts.yaml"
+    models:
+      llm_router: "alias://models/llm/router"
+      llm_slotfill: "alias://models/llm/slotfill"
+      llm_recall: "alias://models/llm/recall"
+      llm_memory_sum: "alias://models/llm/memory_summarizer"
+      cross_encoder: "alias://models/retrieval/cross_encoder"
+      embed_intent: "alias://models/embeddings/intent"
+    indices:
+      faiss_intents_v1: "faiss://intents-v1"
+    calibration:
+      isotonic_tables_v1: "s3://assist/ranker/calibration/isotonic_v1.json"
+    ltr:
+      weights_v1: "s3://assist/ranker/ltr/weights_v1.json"
+    safety:
+      opa_bundle: "s3://assist/policy/opa/bundle-v2.tar.gz"
+      pii_rules: "s3://assist/policy/pii/pii_rules_v1.json"
+    storage:
+      artifacts_bucket: "s3://assist-artifacts"
+      logs_bucket: "s3://assist-logs"
+    secrets:
+      media_agent_token: "vault://kv/agents/media"
+      vision_agent_token: "vault://kv/agents/vision"
+      markets_agent_token: "vault://kv/agents/markets"
+      calendar_agent_token: "vault://kv/agents/calendar"
+      network_agent_token: "vault://kv/agents/network"
+      nlp_agent_token: "vault://kv/agents/nlp"
+      root_ca_bundle: "vault://kv/security/root_ca_bundle"
+      artifacts_kms_key: "vault://kv/kms/artifacts_sse"
+
+  models:
+    providers:
+      openai:
+        api: "https://api.openai.com"
+      huggingface:
+        api: "https://inference.huggingface.co"
+      local:
+        api: "http://llm-gateway.internal"
+    llm:
+      router: { provider: "openai", model_id: "gpt-5-nano" }
+      slotfill: { provider: "openai", model_id: "gpt-5-nano" }
+      recall: { provider: "openai", model_id: "gpt-5-nano" }
+      memory_summarizer: { provider: "openai", model_id: "gpt-5-nano" }
+    retrieval:
+      cross_encoder: { provider: "huggingface", model_id: "mini-cross-encoder-msmarco" }
+    embeddings:
+      intent: { provider: "openai", model_id: "text-embedding-3-large", normalize: true }
+
+  security:
+    secrets:
+      provider: "vault"
+      mount: "kv/"
+    tls:
+      verify_peer: true
+      root_ca_ref: "*uris.secrets.root_ca_bundle"
+
+  feature_flags:
+    enable_lexical_ranker: false
+    enable_llm_recall: true
+    llm_recall_allowed_families: ["music","video","media","schedule","network","finance"]
+    enable_memory_rerank: true
+    router_log_debug: true
+    dispatch_autoslot_llm: true
+    planner_allow_bridges: true
+    planner_validate_policy: true
+
+  bindings:
+    router:
+      set:
+        "models.dense_sr.embedder": "@models.embeddings.intent"
+        "models.dense_sr.index_uri": "@uris.indices.faiss_intents_v1"
+        "models.llm_recall.model": "@models.llm.recall"
+        "models.memory_summarizer.model": "@models.llm.memory_summarizer"
+        "models.cross_encoder.model": "@models.retrieval.cross_encoder.model_id"
+        "ranker.precision_rerank.calibration.table_uri": "@uris.calibration.isotonic_tables_v1"
+        "ranker.precision_rerank.ltr_blend.model_uri": "@uris.ltr.weights_v1"
+        "models.calibrator.table_uri": "@uris.calibration.isotonic_tables_v1"
+        "runtime.trace_enabled": "@feature_flags.router_log_debug"
+        "ranker.candidate_generation.llm_recall.enabled": "@feature_flags.enable_llm_recall"
+        "ranker.precision_rerank.enabled": "@feature_flags.enable_memory_rerank"
+    chat_adapter:
+      set:
+        "runtime.trace_enabled": true
+        "defaults.target_lang": "fa"
+        "storage.artifacts.base_uri": "@uris.storage.artifacts_bucket"
+        "security.tls.root_ca_ref": "@uris.secrets.root_ca_bundle"
+    orchestrator:
+      set:
+        "artifacts.base_uri": "@uris.storage.artifacts_bucket"
+        "policy.opa_bundle_uri": "@uris.safety.opa_bundle"
+        "pii.redaction_rules_uri": "@uris.safety.pii_rules"
+    dispatch_controller:
+      set:
+        "slotfill_llm.model": "@models.llm.slotfill"
+        "prompts.uri": "@uris.prompts.pack"
+        "capability_matrix.uri": "@uris.registries.capability_matrix"
+        "policy.opa_bundle_uri": "@uris.safety.opa_bundle"
+        "pii.redaction_rules_uri": "@uris.safety.pii_rules"
+        "feature_flags.dispatch_autoslot_llm": "@feature_flags.dispatch_autoslot_llm"
+    simple_dispatcher:
+      set:
+        "artifacts.store.base_uri": "@uris.storage.artifacts_bucket"
+        "artifacts.store.sse_kms_key_ref": "@uris.secrets.artifacts_kms_key"
+        "security.tls.root_ca_ref": "@uris.secrets.root_ca_bundle"
+        "endpoints.media_agent.auth.secret_ref": "@uris.secrets.media_agent_token"
+        "endpoints.vision_agent.auth.secret_ref": "@uris.secrets.vision_agent_token"
+        "endpoints.markets_agent.auth.secret_ref": "@uris.secrets.markets_agent_token"
+        "endpoints.calendar_agent.auth.secret_ref": "@uris.secrets.calendar_agent_token"
+        "endpoints.network_agent.auth.secret_ref": "@uris.secrets.network_agent_token"
+        "endpoints.nlp_agent.auth.secret_ref": "@uris.secrets.nlp_agent_token"
+    route_registry:
+      set:
+        "source_uri": "@uris.registries.route_registry"
+    prompts:
+      set:
+        "source_uri": "@uris.prompts.pack"
+    semantic_corpus:
+      set:
+        "source_uri": "@uris.registries.semantic_corpus"
+
+  observability:
+    logging:
+      level: "INFO"
+      json: true
+    metrics:
+      exporter: "prometheus"
+      scrape_port: 9400
+    tracing:
+      exporter: "otlp"
+      endpoint: "http://otel-collector:4317"
+      sample_ratio: 0.1
+
+  health:
+    preflight_checks:
+      - type: "s3_exists"; uri: "@uris.configs.router"
+      - type: "s3_exists"; uri: "@uris.configs.chat_adapter"
+      - type: "s3_exists"; uri: "@uris.registries.route_registry"
+      - type: "faiss_open"; uri: "@uris.indices.faiss_intents_v1"
+      - type: "http_head"; uri: "@models.providers.openai.api"
+    readiness:
+      router_warmup:
+        load_prompts: "@uris.prompts.pack"
+        load_registry: "@uris.registries.route_registry"
+        open_faiss: "@uris.indices.faiss_intents_v1"
+
+  reload:
+    enabled: true
+    watch:
+      - "@uris.configs.router"
+      - "@uris.configs.dispatch_controller"
+      - "@uris.registries.route_registry"
+      - "@uris.prompts.pack"
+      - "@uris.calibration.isotonic_tables_v1"
+      - "@uris.ltr.weights_v1"
+    strategy: "safe_swap"
+
+  tenants:
+    - id: "default"
+      locale: "fa-IR"
+      tz: "Europe/Amsterdam"
+      caps:
+        stt_max_min: 30
+      overrides:
+        feature_flags.enable_llm_recall: true
+    - id: "enterprise-A"
+      locale: "en-US"
+      tz: "America/New_York"
+      overrides:
+        models.llm.router.model_id: "gpt-5-nano"
+        policy.third_party_scrape: "deny"
+
+  checksums:
+    router: "sha256:5a7a...e9"
+    chat_adapter: "sha256:9fd1...ab"
+    orchestrator: "sha256:44cc...1b"
+    dispatch_controller: "sha256:b212...c9"
+    simple_dispatcher: "sha256:b01d...df"
+    route_registry: "sha256:fe88...00"
+    prompts: "sha256:0a6e...aa"
+    calibration: "sha256:1f21...be"
+    ltr_weights: "sha256:f0d2...77"

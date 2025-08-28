@@ -1,1 +1,109 @@
-service: chat_adapter
+adapter:
+  name: "ChatAdapter"
+  version: "1.0"
+
+  runtime:
+    metrics_enabled: true
+    trace_enabled: true
+    timeout_ms: 1200
+
+  preprocess:
+    clean:
+      unicode_nfkc: true
+      strip_control_chars: true
+      trim_whitespace: true
+      collapse_whitespace: true
+      normalize_quotes: true
+      normalize_dashes: true
+      normalize_zwnj: "preserve-fa"
+      normalize_digits:
+        fa_to_ascii: true
+        ar_to_ascii: true
+      max_text_len: 8000
+      truncate_strategy: "hard_tail"
+
+    detect_urls:
+      enabled: true
+      regex_ref: "defaults.url"
+      allow_schemes: ["http","https"]
+      disallow_domains: []
+      max_urls: 5
+
+    detect_media_types:
+      enabled: true
+      rules:
+        - when: "attachment.mime.startswith('image/')"
+          as_media_type: "image"
+        - when: "attachment.mime.startswith('audio/')"
+          as_media_type: "audio"
+        - when: "attachment.mime.startswith('video/')"
+          as_media_type: "video"
+        - when: "attachment.mime == 'application/pdf'"
+          as_media_type: "document"
+        - when: "attachment.mime.startswith('application/')"
+          as_media_type: "document"
+      accept_mime_prefixes: ["image/","audio/","video/","application/pdf","application/"]
+      reject_mime_prefixes: ["application/x-msdownload","application/x-dosexec"]
+      max_files: 5
+
+    attachments_guard:
+      max_total_bytes: 800000000
+      reject_if_missing_id: true
+      compute_sha256_if_missing: false
+
+  locale:
+    default_locale: "en-US"
+    allow_user_override: true
+    infer_order: ["explicit","session","user_profile","platform","default"]
+    timezone:
+      default_tz: "UTC"
+      allow_user_override: true
+      tz_by_locale:
+        "fa-IR": "Asia/Tehran"
+        "en-US": "America/Los_Angeles"
+        "en-GB": "Europe/London"
+        "nl-NL": "Europe/Amsterdam"
+
+  memory:
+    sticky_carry:
+      enabled: true
+      sticky_keys: ["last_file","last_url","last_text","last_intent_hint"]
+      ttl_turns: 3
+      clear_on_negation:
+        enabled: true
+        scope: ["file","url","text"]
+        negation_markers:
+          en: ["not that","use a different file","different link","another one","ignore previous"]
+          fa: ["نه همون","فایل قبلی نه","لینک قبلی نه","یکی دیگه","عوضش کن"]
+      precedence:
+        prefer_current_attachments_over_stickies: true
+        prefer_current_urls_over_stickies: true
+
+  hints:
+    target_lang_default: "fa"
+    provider_default:
+      media: "youtube"
+      ocr: "tesseract"
+      stt: "whisper"
+    safety_mode: "standard"
+    propagate_to_router: ["target_lang","provider","safety_mode"]
+
+  contracts:
+    envelope_schema_ref: "MessageEnvelope@1"
+
+  defaults:
+    url: "https?://\\S+"
+
+  observability:
+    logging:
+      level: "INFO"
+      redact_pii: true
+      include_sections: ["preprocess","locale","memory","hints","envelope"]
+    metrics:
+      enabled: true
+      counters: ["incoming_turns","attachments_seen","urls_seen","stickies_used","negations_detected"]
+    traces:
+      enabled: true
+      tags:
+        component: "ChatAdapter"
+        version: "1.0"

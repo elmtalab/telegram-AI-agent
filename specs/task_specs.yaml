@@ -1,1 +1,75 @@
-tasks: []
+version: "2025-03-01"
+tasks:
+  - name: "video.thumbnail"
+    family: "video"
+    version: "1.0.0"
+    description: "Extract a poster frame at timestamp from a video (url or file)."
+    inputs:
+      required: ["at", "source"]
+      optional: ["size"]
+      types:
+        at: "timecode"
+        source: "file_id|url"
+        size: "enum[256,512,768,1024]"
+    resources:
+      needs: ["video_source"]
+    produces:
+      - { key: "image_file_id", type: "file_id" }
+    side_effects: false
+    default_agent: "media_agent"
+
+  - name: "video.gif"
+    family: "video"
+    version: "1.0.0"
+    description: "Create a GIF clip from a video, with start and end times."
+    inputs:
+      required: ["start","end","source"]
+      optional: ["fps","size","caption"]
+      types:
+        start: "timecode"
+        end: "timecode"
+        source: "file_id|url"
+        fps: "int"
+        size: "enum[256,512,768]"
+        caption: "string"
+    resources:
+      needs: ["video_source"]
+    produces:
+      - { key: "gif_file_id", type: "file_id" }
+    side_effects: false
+    default_agent: "media_agent"
+
+  - name: "music.send"
+    family: "music"
+    version: "1.1.0"
+    description: "Send an audio track to a recipient (email/phone/@handle)."
+    inputs:
+      required: ["recipient","track_source"]
+      optional: ["message"]
+      types:
+        recipient: "email|phone|handle"
+        track_source: "file_id|id|url"
+        message: "string"
+    resources:
+      needs: ["audio_source"]
+    produces: []
+    side_effects: true
+    default_agent: "media_agent"
+
+  - name: "doc.ocr"
+    family: "ocr"
+    version: "1.0.0"
+    description: "OCR an image/PDF document."
+    inputs:
+      required: ["file_id"]
+      optional: ["language","as_markdown"]
+      types:
+        file_id: "file_id"
+        language: "lang"
+        as_markdown: "bool"
+    resources:
+      needs: ["image_or_pdf"]
+    produces:
+      - { key: "text", type: "string" }
+    side_effects: false
+    default_agent: "vision_agent"
