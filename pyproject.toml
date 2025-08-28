@@ -1,0 +1,11 @@
+[project]
+name = "assist-stack"
+version = "0.1.0"
+description = "Monorepo scaffolding for assist stack"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "pydantic",
+    "faiss-cpu",
+    "structlog",
+]
