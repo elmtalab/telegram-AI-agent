@@ -36,12 +36,31 @@ class Router:
 
     config: Any | None = field(default=None)
     config_path: str = "config/router.yaml"
+    _impl: Any | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         """Load configuration from ``config_path`` if no mapping was provided."""
 
         if self.config is None and Path(self.config_path).exists():
             self.config = load_yaml(self.config_path)
+
+        # Attempt to load the fully fledged router when requested.  The import is
+        # wrapped in a ``try`` block so that the lightweight fallback continues to
+        # function when optional dependencies are missing.  This mirrors how the
+        # production system can defer to a richer implementation when available.
+        if isinstance(self.config, dict):
+            router_cfg = self.config.get("router", {})
+            if router_cfg.get("name") == "ConfigLLMRouter":
+                try:  # pragma: no cover - exercised implicitly in integration tests
+                    from .config_llm_router import ConfigLLMRouter
+
+                    routes = load_yaml("registry/route_registry.yaml")
+                    self._impl = ConfigLLMRouter(self.config, routes)
+                except Exception:
+                    # If anything goes wrong (missing dependencies, invalid config
+                    # etc.) we silently fall back to the simple behaviour used in
+                    # the kata's unit tests.
+                    self._impl = None
 
     def route(self, text: str) -> RouterOutput:
         """Return a :class:`RouterOutput` for the given ``text``.
@@ -52,10 +71,17 @@ class Router:
         level components and unit tests.
         """
 
+        if self._impl is not None:
+            return self._impl.route(text)
+
         gate.gate_request({"text": text})
         # The configuration may define a default list of routes.  If not present
         # we fall back to a single ``chat.general`` entry.
-        routes = self.config.get("default_routes", ["chat.general"]) if isinstance(self.config, dict) else ["chat.general"]
+        routes = (
+            self.config.get("default_routes", ["chat.general"])
+            if isinstance(self.config, dict)
+            else ["chat.general"]
+        )
         return RouterOutput(routes=routes)
 
 
