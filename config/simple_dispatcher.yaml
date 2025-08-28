@@ -1,1 +1,39 @@
-service: simple_dispatcher
+simple_dispatcher:
+  name: "SimpleDispatcher"
+  version: "1.0"
+  runtime:
+    trace_enabled: true
+    metrics_enabled: true
+    timeout_ms: 2000
+  artifacts:
+    store:
+      base_uri: ""
+      sse_kms_key_ref: ""
+  security:
+    tls:
+      root_ca_ref: ""
+  endpoints:
+    media_agent:
+      url: "http://media-agent"
+      auth:
+        secret_ref: ""
+    vision_agent:
+      url: "http://vision-agent"
+      auth:
+        secret_ref: ""
+    markets_agent:
+      url: "http://markets-agent"
+      auth:
+        secret_ref: ""
+    calendar_agent:
+      url: "http://calendar-agent"
+      auth:
+        secret_ref: ""
+    network_agent:
+      url: "http://network-agent"
+      auth:
+        secret_ref: ""
+    nlp_agent:
+      url: "http://nlp-agent"
+      auth:
+        secret_ref: ""

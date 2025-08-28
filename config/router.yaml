@@ -1,1 +1,177 @@
-service: router
+router:
+  name: "ConfigLLMRouter"
+  version: "1.0"
+
+  runtime:
+    trace_enabled: true
+    metrics_enabled: true
+    timeout_ms: 2000
+
+  gate:
+    modality_detection:
+      allow_llm: true
+      infer_keys: ["has_url","has_file","has_image","has_voice","has_video","has_text"]
+      map_files_by_media_type: true
+    family_selection:
+      policy_allowlist:
+        allow: ["core","media","images","video","ocr","qr","table","schedule","network","finance","music"]
+        deny: []
+      resource_gate:
+        enforce_modal_requirements: true
+        min_overlap: 0.15
+    soft_cues_to_prior:
+      enabled: true
+      decay: 0.30
+
+  thresholds:
+    domain_lock_margin: 0.18
+    tau_exec: 0.62
+    tau_clarify: 0.42
+    tau_fallback: 0.20
+
+  models:
+    dense_sr:
+      embedder: ""
+      index_uri: ""
+      normalize: true
+      topK_sem: 30
+      min_score: 0.05
+    llm_recall:
+      model: ""
+      temperature: 0.1
+      max_tokens: 256
+      topK_llm: 12
+      prompt_template_ref: "recall_v1"
+    memory_summarizer:
+      model: ""
+      temperature: 0.1
+      max_tokens: 256
+    cross_encoder:
+      enabled: true
+      model: ""
+      max_pairs: 12
+    calibrator:
+      method: "isotonic"
+      table_uri: ""
+
+  ranker:
+    candidate_generation:
+      dense_sr:
+        enabled: true
+        topK: 30
+        family_filter: "soft"
+      llm_recall:
+        enabled: true
+        allowed_families: []
+        use_memory_context: true
+        topK: 12
+        prompt_template_ref: "recall_v1"
+        include_rationales: true
+    fusion:
+      method: "weighted_rrf"
+      weights:
+        dense_sr: 0.6
+        llm_prior: 0.4
+      shortlist_topN: 12
+    precision_rerank:
+      enabled: true
+      cross_encoder:
+        enabled: true
+        max_pairs: 12
+      features:
+        include: ["sr_score","ce_score","slot_readiness_llm","resource_match","session_affinity","memory_consistency","topic_shift","safety_hint"]
+      ltr_blend:
+        method: "logistic"
+        model_uri: ""
+      calibration:
+        method: "isotonic"
+        table_uri: ""
+
+  merge_prepare:
+    sticky_bind:
+      prefer_last_file_for_families: ["media","images","video","ocr","qr","table","music"]
+      prefer_last_url_for_families: ["media","video","core"]
+      guard_user_negation_phrases:
+        - "not that"
+        - "use a different file"
+        - "different link"
+        - "نه همون"
+    auto_fill_trivial_pairs:
+      rules:
+        - name: "date_plus_time_to_datetime"
+          when_present: ["date","time"]
+          produce: "datetime"
+        - name: "file_or_url_prefer_file"
+          when_present: ["file_id","url"]
+          produce: "source"
+          precedence: ["file_id","url"]
+    canonicalize:
+      datetime_to_iso_8601: true
+      timezone: "session"
+
+  policy:
+    provider_allowlist:
+      stt: ["whisper","deepgram"]
+      translate: ["gpt"]
+      ocr: ["tesseract"]
+    caps:
+      stt: { max_duration_s: 1800 }
+      media: { max_bytes: 500000000 }
+      vision: { max_pixels: 268435456 }
+    safe_fallbacks:
+      when_external_scrape_denied: "inline_tldr"
+      when_video_too_long: "chapters_only"
+    pre_clarify:
+      enabled: true
+      ask_at_most: 1
+      friendly_labels_ref: "clarify_prompts"
+      triggers:
+        - reason: "missing_critical_single"
+          if_missing_keys_one_of: ["start","end","at","recipient","playlist_id","booking_ref"]
+        - reason: "ambiguous_source"
+          if_conflict: ["file_id","url"]
+        - reason: "provider_cap_exceeded"
+          when_cap_hit: true
+
+  finalize:
+    plan_skeleton:
+      max_tasks: 3
+      include_top_intent_only: true
+      attach_llm_cues_as_nonbinding: true
+      include_missing_keys_summary: true
+    clarify_fallback:
+      when_below_tau_clarify: true
+      message_style_by_locale:
+        en-US: { tone: "friendly", register: "neutral" }
+        fa-IR: { tone: "formal", register: "polite" }
+    graceful_fallback:
+      below_tau_fallback_to: "chat.general"
+      text_when_fallback:
+        en-US: "I can help with that—could you say it another way?"
+        fa-IR: "می‌تونم کمک کنم—ممکنه کمی واضح‌تر توضیح بدید؟"
+
+  prompts:
+    recall_v1:
+      system: |
+        You are an intent recall assistant. Return top candidate intents by name only,
+        with brief rationales. Do not extract fields/slots.
+      user_template: |
+        Message:
+        - text: {text}
+        - urls: {urls}
+        - attachments: {attachments}
+        - locale: {locale}, tz: {timezone}
+        Session snapshot:
+        - last_url: {last_url}
+        - last_file: {last_file}
+        - last_intent_hint: {last_intent_hint}
+        Families gated: {families}
+        List up to {topK} intents.
+      output_schema_hint: "List[{intent: string, rationale: string}]"
+    clarify_prompts:
+      en-US:
+        missing_single: "Please provide **{field}**."
+        ambiguous_source: "Should I use the last file or the link you mentioned?"
+      fa-IR:
+        missing_single: "لطفاً **{field}** را مشخص کنید."
+        ambiguous_source: "از فایل قبلی استفاده کنم یا لینکی که گفتید؟"

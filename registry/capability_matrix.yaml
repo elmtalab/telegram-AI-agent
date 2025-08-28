@@ -1,1 +1,80 @@
-capabilities: []
+version: "2025-03-01"
+agents:
+  media_agent:
+    families: ["video","music","media"]
+    intents_supported:
+      - "video.thumbnail"
+      - "video.gif"
+      - "music.send"
+      - "music.preview"
+      - "music.normalize"
+      - "music.convert"
+    resources:
+      accepts:
+        source: ["file_id","url"]
+      media_types:
+        video: ["video/mp4","video/webm","video/quicktime"]
+        audio: ["audio/mpeg","audio/wav","audio/flac","audio/aac"]
+      caps:
+        max_bytes: 500000000
+        max_duration_s: 7200
+    concurrency:
+      max_inflight: 32
+
+  vision_agent:
+    families: ["images","ocr","qr","barcode","table"]
+    intents_supported:
+      - "image.describe"
+      - "image.remove_bg"
+      - "image.face_blur"
+      - "doc.ocr"
+      - "qr.decode"
+      - "barcode.decode"
+      - "table.extract"
+    resources:
+      accepts:
+        image: ["image/jpeg","image/png","image/webp"]
+        document: ["application/pdf"]
+      caps:
+        max_pixels: 268435456
+        pdf_max_pages: 30
+    concurrency:
+      max_inflight: 24
+
+  markets_agent:
+    families: ["finance"]
+    intents_supported:
+      - "finance.crypto.ticker"
+      - "finance.fx.convert"
+      - "finance.fx.rate"
+      - "finance.crypto.ohlc"
+    resources:
+      accepts:
+        source: ["text"]
+      caps: {}
+    concurrency:
+      max_inflight: 64
+
+  calendar_agent:
+    families: ["schedule"]
+    intents_supported: ["sched.book","sched.reschedule","sched.cancel","sched.slots"]
+    resources:
+      accepts: { source: ["text"] }
+    concurrency:
+      max_inflight: 16
+
+  network_agent:
+    families: ["network"]
+    intents_supported: ["network.proxy.get","vpn.recommend"]
+    resources:
+      accepts: { source: ["text"] }
+    concurrency:
+      max_inflight: 16
+
+  nlp_agent:
+    families: ["core","text"]
+    intents_supported: ["chat.general","text.summarize","text.translate"]
+    resources:
+      accepts: { source: ["text"] }
+    concurrency:
+      max_inflight: 128

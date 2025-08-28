@@ -1,1 +1,169 @@
-service: orchestrator
+orchestrator:
+  name: "AOR Orchestrator"
+  version: "1.2.0"
+  runtime:
+    engine: "python-service"
+    trace_enabled: true
+    metrics_enabled: true
+    timeout_ms: 1500
+    clock: "utc"
+    locale_default: "en-US"
+
+  inputs_contract: "OrchestratorInput@1"
+  outputs_contract: "AOR@1"
+
+  aor:
+    schema:
+      version: "1.2.0"
+    fields:
+      include:
+        - "aor_id"
+        - "schema_version"
+        - "session_id"
+        - "turn_id"
+        - "tenant_id"
+        - "user_id"
+        - "nodes"
+        - "edges"
+        - "created_at"
+        - "idempotency_key"
+        - "next_action"
+        - "usage"
+        - "sr_debug"
+        - "plan_source"
+        - "security_labels"
+      validation:
+        nodes_max: 8
+        edges_max: 16
+        require_nonempty_nodes: true
+        forbid_empty_intent: true
+      normalize:
+        sort_node_inputs_keys: true
+        canonicalize_timestamps: true
+        prune_nulls: true
+        redact_values_by_label:
+          pii: true
+          secrets: true
+
+  task_specs:
+    source: "uri"
+    uri: "s3://router/task_specs.yaml"
+    cache_ttl_s: 600
+    refresh_on_not_found: true
+    strict_missing: true
+
+  node_builder:
+    input_binding_precedence:
+      - "router.merge_prepare.bound_stickies"
+      - "router.finalize.llm_cues"
+      - "envelope.adapter_hints"
+    compose_trivial:
+      enabled: true
+      rules:
+        - name: "date+time→datetime"
+          when_present: ["date","time"]
+          produce: "datetime"
+    defaults:
+      allow_missing_optional: true
+    agent_family_map:
+      "video.*": "media_agent"
+      "media.*": "media_agent"
+      "music.*": "media_agent"
+      "doc.*": "vision_agent"
+      "image.*": "vision_agent"
+      "qr.*": "vision_agent"
+      "barcode.*": "vision_agent"
+      "table.*": "vision_agent"
+      "sched.*": "calendar_agent"
+      "network.*": "network_agent"
+      "finance.*": "markets_agent"
+      "chat.general": "nlp_agent"
+
+  idempotency:
+    enabled: true
+    algorithm: "sha256_hmac"
+    secret_ref: "env:IDEMPOTENCY_HMAC_KEY"
+    dedupe_window_s: 180
+    include_fields:
+      - "tenant_id"
+      - "user_id"
+      - "session_id"
+      - "router.finalize.chosen_intent"
+      - "router.merge_prepare.bound_stickies"
+      - "router.finalize.plan_skeleton.tasks"
+      - "task_specs.version"
+    exclude_fields:
+      - "timestamps"
+      - "sr_debug"
+      - "transient"
+    collision_policy: "reuse_existing"
+    normalize:
+      sort_keys: true
+      collapse_whitespace: true
+      iso_timestamps: true
+
+  next_action:
+    ask_when_missing_required: true
+    ask_at_most: 1
+    clarify_templates:
+      en-US:
+        missing: "Please provide **{field}**."
+        pick_source: "Should I use the last file or the link you mentioned?"
+      fa-IR:
+        missing: "لطفاً **{field}** را مشخص کنید."
+        pick_source: "از فایل قبلی استفاده کنم یا لینکی که گفتید؟"
+    allow_execute_when_all_required_present: true
+
+  telemetry:
+    sinks:
+      - type: "kafka"
+        topic: "aor-events-v1"
+        required: true
+      - type: "metrics"
+        ns: "router.aor"
+        required: false
+    emit_fields:
+      - "aor_id"
+      - "session_id"
+      - "turn_id"
+      - "tenant_id"
+      - "user_id_hash"
+      - "chosen_intent"
+      - "node_count"
+      - "edge_count"
+      - "decision"
+      - "idempotent_reused"
+      - "latency_ms"
+      - "caps_hit"
+      - "policy_fallback"
+    redact:
+      pii: true
+      secrets: true
+    retain_days: 14
+
+  usage:
+    accounting:
+      enable_predictive_costing: true
+      llm_cost_model: "s3://billing/llm_costs_v1.json"
+    collect:
+      router_token_usage: true
+      adapter_token_usage: true
+      orchestration_cpu_ms: true
+
+  security:
+    labels:
+      propagate_from_router: true
+      default: ["internal"]
+    pii_detection:
+      enabled: true
+      strategy: "rule-lite"
+
+  sr_debug:
+    include_sections:
+      - "gate"
+      - "ranker.dense_hits"
+      - "ranker.llm_prior"
+      - "fusion"
+      - "reranker.features"
+      - "calibrated_probs"
+    redact_pii: true

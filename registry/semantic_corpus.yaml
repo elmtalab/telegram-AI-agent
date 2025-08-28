@@ -1,1 +1,330 @@
-corpus: []
+semantic_corpus:
+  languages: ["en", "fa"]
+
+  domain_utterances:
+    core:
+      - "help"
+      - "menu"
+      - "settings"
+      - "change language to persian"
+      - "change language to english"
+      - "راهنما"
+      - "منو"
+      - "تنظیمات"
+      - "زبان را فارسی کن"
+      - "زبان را انگلیسی کن"
+      - "TL;DR this text"
+      - "summarize this"
+      - "translate to persian"
+      - "fix grammar"
+      - "خلاصه کن"
+      - "به فارسی ترجمه کن"
+      - "اشتباهات گرامر را اصلاح کن"
+    media:
+      - "summarize this youtube link"
+      - "get transcript of this video"
+      - "create chapters"
+      - "highlights of this clip"
+      - "notable quotes"
+      - "این لینک را خلاصه کن"
+      - "متن این ویدیو را بگیر"
+      - "فصل‌بندی ویدیو"
+      - "نکات کلیدی"
+      - "جملات مهم"
+    images:
+      - "generate an image"
+      - "describe this image"
+      - "remove background"
+      - "blur faces"
+      - "تصویر بساز"
+      - "این تصویر را توصیف کن"
+      - "حذف پس‌زمینه"
+      - "تاری چهره‌ها"
+    tutor:
+      - "start language tutor"
+      - "correct my text with explanations"
+      - "roleplay at a hotel"
+      - "آموزش زبان را شروع کن"
+      - "با توضیح اصلاح کن"
+      - "نقش‌آفرینی در هتل"
+    schedule:
+      - "show available slots"
+      - "book 2025-08-26 14:00 for 30 minutes"
+      - "reschedule my meeting"
+      - "cancel booking ABC123"
+      - "زمان‌های خالی را نشان بده"
+      - "رزرو 2025-08-26 ساعت 14:00"
+      - "جلسه را جابجا کن"
+      - "لغو رزرو ABC123"
+    utilities:
+      - "BTCUSD price now"
+      - "ETH/USDT 1h OHLC"
+      - "fx rate usd to eur"
+      - "convert 120 usd to eur"
+      - "قیمت بیت کوین"
+      - "کندل‌های ۱ ساعته ETH/USDT"
+      - "نرخ دلار به یورو"
+      - "تبدیل ۱۲۰ دلار به یورو"
+      - "generate qr for this text"
+      - "decode this barcode"
+      - "برای این متن QR بساز"
+      - "این بارکد را بخوان"
+      - "استخراج متن از سند"
+      - "VPN for streaming to US"
+      - "socks5 proxy for UK"
+      - "vpn برای نتفلیکس آمریکا"
+      - "پروکسی socks5 برای آلمان"
+    other:
+      - "hi"
+      - "general chat"
+      - "help me"
+      - "سلام"
+      - "گپ"
+
+  utterances_by_intent:
+    core.help:
+      positives: ["help", "help me", "what can you do"]
+      negatives: ["settings","menu","language fa","language english"]
+    core.menu:
+      positives: ["menu","show menu","open menu"]
+      negatives: ["help","settings","language"]
+    core.settings:
+      positives: ["settings","open settings"]
+      negatives: ["help","menu","language"]
+    core.language.set:
+      positives: ["change language to english","change language to persian","language fa","language en"]
+      negatives: ["help","menu","settings"]
+    chat.general:
+      positives: ["hi","hello","سلام","گپ بزنیم"]
+      negatives: ["menu","settings","help"]
+    link.screenshot:
+      positives:
+        - "screenshot this page"
+        - "full page screenshot"
+        - "capture webpage snapshot"
+        - "اسکرین‌شات از این لینک"
+        - "اسکرین شات کامل صفحه"
+      negatives: ["summarize this link","translate this page","SEO meta"]
+    video.thumbnail:
+      positives:
+        - "thumbnail at 5s"
+        - "grab frame at 00:00:05"
+        - "poster frame at 12s"
+        - "get still frame"
+        - "تصویر بندانگشتی در ۵ ثانیه"
+      negatives: ["gif","animated","loop"]
+    video.gif:
+      positives:
+        - "gif 00:00:02 to 00:00:05"
+        - "make a gif from 5s to 25s"
+        - "animated gif clip"
+        - "looping gif"
+        - "ساخت گیف ۵ تا ۲۵ ثانیه"
+      negatives: ["thumbnail","poster frame","still image"]
+    media.transcript:
+      positives:
+        - "get transcript of this Vimeo"
+        - "transcribe this TikTok"
+        - "extract captions from YouTube"
+        - "متن این ویدیو را بگیر"
+      negatives: ["screenshot this page"]
+    media.chapters:
+      positives:
+        - "get chapters for this video"
+        - "chapterize this YouTube"
+        - "create sections with timestamps"
+        - "فصل‌بندی ویدیو"
+      negatives: ["quotes","highlights"]
+    media.highlights:
+      positives:
+        - "highlight key moments in this video"
+        - "best moments"
+        - "نکات کلیدی ویدیو"
+      negatives: ["chapters","quotes"]
+    media.quotes:
+      positives:
+        - "notable quotes from this video"
+        - "pull the best quotes"
+        - "extract key quotes"
+        - "جملات مهم ویدیو"
+      negatives: ["chapters","highlights"]
+    image.generate:
+      positives:
+        - "generate an image of a cyberpunk city at night"
+        - "create AI art"
+        - "text-to-image"
+        - "تصویر بساز"
+      negatives: ["describe this image","remove background","blur faces"]
+    image.describe:
+      positives:
+        - "describe this image"
+        - "what's in the picture"
+        - "caption this photo"
+        - "این تصویر را توصیف کن"
+      negatives: ["generate an image","remove background","blur faces"]
+    image.remove_bg:
+      positives:
+        - "remove background"
+        - "erase background"
+        - "transparent background"
+        - "حذف پس‌زمینه"
+      negatives: ["replace background with","describe this image","blur faces"]
+    image.face_blur:
+      positives:
+        - "blur faces for privacy"
+        - "pixelate faces"
+        - "hide all faces"
+        - "تاری چهره برای حفظ حریم خصوصی"
+      negatives: ["remove background","describe image","variation"]
+    image.annotate:
+      positives:
+        - "add a red circle around the main object"
+        - "draw arrow and label"
+        - "highlight the main object"
+        - "دایرهٔ قرمز دور سوژه"
+      negatives: ["remove background","blur faces","variation only"]
+    image.background_replace:
+      positives:
+        - "replace background with a modern office"
+        - "swap the background to a beach"
+        - "change background to white studio"
+        - "تعویض پس‌زمینه با دفتر مدرن"
+      negatives: ["remove background only","describe this image"]
+    music.send:
+      positives:
+        - "send 'Perfect' by Ed Sheeran to my email"
+        - "email 'Blinding Lights' to sara@example.com"
+        - "text the song to +1 415 555 0100"
+        - "DM 'Viva La Vida' to @mona"
+        - "«چرا رفتی» رو برای مریم ایمیل کن"
+        - "این آهنگ رو به تلگرامم بفرست"
+      negatives: ["send screenshot","send pdf","share playlist screenshot"]
+    music.preview:
+      positives:
+        - "make a 20s preview"
+        - "30s preview please"
+        - "پیش‌نمایش ۳۰ ثانیه‌ای بساز"
+      negatives: ["video thumbnail","create gif"]
+    music.normalize:
+      positives:
+        - "normalize to -14 lufs"
+        - "match loudness"
+        - "تنظیم لودنس به -۱۴ LUFS"
+      negatives: ["convert to mp3","trim clip","make preview"]
+    music.convert:
+      positives:
+        - "convert to mp3 320kbps"
+        - "export to wav"
+        - "encode aac 256kbps"
+        - "تبدیل به mp3 320kbps"
+      negatives: ["convert pdf to docx","image to png"]
+    music.clip:
+      positives:
+        - "clip 00:00:05 to 00:00:25 with fade"
+        - "trim 5s–25s"
+        - "کلیپ ۵ تا ۲۵ ثانیه"
+      negatives: ["video clip edit","gif from video"]
+    music.playlist.create:
+      positives:
+        - "create playlist \"Gym Mix 2025\""
+        - "new playlist: Sunday Chill"
+        - "ساخت پلی‌لیست: یکشنبه‌های آروم"
+      negatives: ["create calendar","create task list"]
+    music.playlist.add:
+      positives:
+        - "add TRK-123 to playlist Gym Mix 2025"
+        - "put this song into Sunday Chill"
+        - "افزودن ترک ۴۵۶ به پلی‌لیست سفر"
+      negatives: ["add item to todo list","append to csv"]
+    music.playlist.remove:
+      positives:
+        - "remove TRK-123 from playlist PLAY-777"
+        - "take this song out of Sunday Chill"
+        - "حذف آهنگ از پلی‌لیست «باشگاه»"
+      negatives: ["remove background","remove proxy"]
+    music.inline.search:
+      positives:
+        - "songs by Radiohead"
+        - "tracks by Taylor Swift"
+        - "music from Coldplay"
+        - "آهنگ‌های شجریان"
+      negatives: ["web search news","google images","vpn proxy list"]
+    qr.generate:
+      positives:
+        - "generate QR for https://example.com"
+        - "create QR for سلام دنیا"
+        - "make a QR code"
+      negatives: ["scan qr","decode qr"]
+    qr.decode:
+      positives: ["decode this QR","scan this QR","read the QR code"]
+      negatives: ["generate qr","make qr code"]
+    barcode.decode:
+      positives: ["decode this barcode","scan barcode","read UPC/EAN"]
+      negatives: ["generate qr","make qr code"]
+    table.extract:
+      positives: ["extract table as CSV","convert table to csv","جدول را به CSV تبدیل کن"]
+      negatives: ["normalize table schema","database table design"]
+    receipt.extract:
+      positives: ["parse invoice fields","extract receipt fields","فیلدهای رسید را استخراج کن"]
+      negatives: ["ocr only","translate this document"]
+    doc.ocr:
+      positives:
+        - "OCR this file"
+        - "extract text from PDF"
+        - "recognize text from image"
+        - "استخراج متن از سند"
+      negatives: ["parse invoice fields","what is the total amount"]
+    doc.parse_invoice:
+      positives: ["parse invoice fields","extract invoice data","فیلدهای فاکتور را استخراج کن"]
+      negatives: ["ocr only","translate document"]
+    doc.qa:
+      positives:
+        - "what is the total amount?"
+        - "what's the tax amount?"
+        - "due date?"
+        - "مبلغ کل چقدر است؟"
+      negatives: ["ocr this","parse invoice fields"]
+    network.proxy.get:
+      positives:
+        - "socks5 proxy for DE"
+        - "http proxy to UK"
+        - "MTProto proxy"
+        - "proxy server for gaming"
+        - "پروکسی socks5 برای آلمان"
+      negatives:
+        - "proxy brush in photoshop"
+        - "design pattern proxy"
+        - "photoshop proxy settings"
+    vpn.recommend:
+      positives:
+        - "VPN for streaming to US"
+        - "vpn نتفلیکس آمریکا"
+        - "vpn برای استریم"
+      negatives:
+        - "vpn upload speed test"
+        - "corporate vpn policy"
+    finance.crypto.price:
+      positives:
+        - "price BTCUSD now"
+        - "BTC/USDT price"
+        - "what's BTC price"
+        - "current price of ETH"
+      negatives: ["candles","ohlc","convert","ticket price","pricing page"]
+    finance.crypto.ohlc:
+      positives:
+        - "BTCUSD 4h candles"
+        - "ETH/USDT 15m ohlc"
+        - "daily candle chart"
+      negatives: ["price now","convert","rate","ticker"]
+    finance.fx.rate:
+      positives:
+        - "usd to eur rate"
+        - "eur/usd rate"
+        - "fx rate usd eur"
+      negatives: ["convert 120 usd to eur","ohlc","crypto"]
+    finance.fx.convert:
+      positives:
+        - "convert 120 usd to eur"
+        - "usd -> eur convert amount"
+        - "تبدیل ۱۲۰ دلار به یورو"
+      negatives: ["rate","ohlc","price","ticket price"]

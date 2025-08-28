@@ -1,1 +1,151 @@
-routes: []
+families:
+  core:
+    modal_requirements: []
+    intents_ref: core_intents
+  media:
+    modal_requirements: ["url|file"]
+    intents_ref: media_intents
+  images:
+    modal_requirements: ["file|url"]
+    intents_ref: image_intents
+  video:
+    modal_requirements: ["file|url"]
+    intents_ref: video_intents
+  ocr:
+    modal_requirements: ["file"]
+    intents_ref: ocr_intents
+  qr:
+    modal_requirements: ["file|text"]
+    intents_ref: qr_intents
+  barcode:
+    modal_requirements: ["file|text"]
+    intents_ref: barcode_intents
+  table:
+    modal_requirements: ["file|url"]
+    intents_ref: table_intents
+  schedule:
+    modal_requirements: ["text"]
+    intents_ref: schedule_intents
+  network:
+    modal_requirements: ["text"]
+    intents_ref: network_intents
+  finance:
+    modal_requirements: ["text"]
+    intents_ref: finance_intents
+  music:
+    modal_requirements: ["file|id|url"]
+    intents_ref: music_intents
+  doc:
+    modal_requirements: ["file"]
+    intents_ref: doc_intents
+
+intents:
+  core_intents:
+    - name: "core.help"
+      desc: "Show help information"
+    - name: "core.menu"
+      desc: "Show menu options"
+    - name: "core.settings"
+      desc: "Open settings"
+    - name: "core.language.set"
+      desc: "Change interface language"
+    - name: "chat.general"
+      desc: "General chat"
+  media_intents:
+    - name: "media.transcript"
+      desc: "Get transcript of a video or audio"
+    - name: "media.chapters"
+      desc: "Create chapters for media"
+    - name: "media.highlights"
+      desc: "Highlight key moments"
+    - name: "media.quotes"
+      desc: "Extract notable quotes"
+    - name: "link.screenshot"
+      desc: "Capture screenshot of a webpage"
+  image_intents:
+    - name: "image.generate"
+      desc: "Generate an image from text"
+    - name: "image.describe"
+      desc: "Describe an image"
+    - name: "image.remove_bg"
+      desc: "Remove background from image"
+    - name: "image.face_blur"
+      desc: "Blur faces in an image"
+    - name: "image.annotate"
+      desc: "Annotate an image"
+    - name: "image.background_replace"
+      desc: "Replace image background"
+  video_intents:
+    - name: "video.thumbnail"
+      desc: "Extract thumbnail at given timestamp"
+    - name: "video.gif"
+      desc: "Create GIF from video clip"
+  ocr_intents:
+    - name: "doc.ocr"
+      desc: "OCR a document"
+    - name: "doc.parse_invoice"
+      desc: "Parse invoice fields"
+    - name: "doc.qa"
+      desc: "Question answering over document"
+    - name: "receipt.extract"
+      desc: "Extract fields from receipt"
+  qr_intents:
+    - name: "qr.generate"
+      desc: "Generate QR code"
+    - name: "qr.decode"
+      desc: "Decode QR code"
+  barcode_intents:
+    - name: "barcode.decode"
+      desc: "Decode barcode"
+  table_intents:
+    - name: "table.extract"
+      desc: "Extract table to CSV"
+  schedule_intents:
+    - name: "sched.book"
+      desc: "Book a meeting"
+    - name: "sched.reschedule"
+      desc: "Reschedule a meeting"
+    - name: "sched.cancel"
+      desc: "Cancel a booking"
+    - name: "sched.slots"
+      desc: "Show available slots"
+  network_intents:
+    - name: "network.proxy.get"
+      desc: "Get proxy server"
+    - name: "vpn.recommend"
+      desc: "Recommend VPN"
+  finance_intents:
+    - name: "finance.crypto.ticker"
+      desc: "Get crypto price"
+    - name: "finance.crypto.ohlc"
+      desc: "Get crypto OHLC data"
+    - name: "finance.fx.rate"
+      desc: "Get FX rate"
+    - name: "finance.fx.convert"
+      desc: "Convert currency"
+  music_intents:
+    - name: "music.send"
+      desc: "Send an audio track to recipient"
+    - name: "music.preview"
+      desc: "Create audio preview"
+    - name: "music.normalize"
+      desc: "Normalize audio loudness"
+    - name: "music.convert"
+      desc: "Convert audio format"
+    - name: "music.clip"
+      desc: "Clip audio segment"
+    - name: "music.playlist.create"
+      desc: "Create playlist"
+    - name: "music.playlist.add"
+      desc: "Add track to playlist"
+    - name: "music.playlist.remove"
+      desc: "Remove track from playlist"
+    - name: "music.inline.search"
+      desc: "Search for tracks"
+  doc_intents:
+    - name: "doc.ocr"
+      desc: "OCR document"
+    - name: "doc.parse_invoice"
+      desc: "Parse invoice"
+    - name: "doc.qa"
+      desc: "QA on document"

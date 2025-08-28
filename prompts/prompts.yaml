@@ -1,1 +1,85 @@
-prompts: {}
+prompts:
+  recall_v1:
+    system: |
+      You are an intent recall assistant. Return top candidate intents by name only,
+      with brief rationales. Do not extract fields/slots.
+    user_template: |
+      Message:
+      - text: {text}
+      - urls: {urls}
+      - attachments: {attachments}
+      - locale: {locale}, tz: {timezone}
+      Session snapshot:
+      - last_url: {last_url}
+      - last_file: {last_file}
+      - last_intent_hint: {last_intent_hint}
+      Families gated: {families}
+      List up to {topK} intents.
+    output_schema_hint: "List[{intent: string, rationale: string}]"
+
+  slotfill_extract_v1:
+    system: |
+      You extract ONLY the missing fields required to execute the given intent.
+      Use the current user message, the message envelope, and a short memory snapshot.
+      Do not invent values. If unsure, leave the field absent.
+      Output strictly the JSON schema in "json_schema_hint".
+    user_template: |
+      Intent: {intent}
+      Required fields (missing): {missing_fields}
+      Allowed extra context:
+      - message.text: {text}
+      - urls: {urls}
+      - attachments_meta: {attachments_meta}
+      - locale/tz: {locale} / {timezone}
+      - memory.short_ctx: {short_ctx}
+      - memory.entity_bag: {entity_bag}
+      - stickies: {stickies}
+
+      Return only fields you are confident about. Provide per-field confidence 0..1.
+    json_schema_hint: |
+      {
+        "type": "object",
+        "properties": {
+          "fields":  { "type":"object", "additionalProperties": true },
+          "confidence": { "type":"number" },
+          "field_confidence": { "type":"object", "additionalProperties": { "type":"number" } }
+        },
+        "required": ["fields","confidence","field_confidence"]
+      }
+
+  slotfill_verify_v1:
+    system: |
+      You verify a candidate field set for the given intent.
+      Judge plausibility, internal consistency, and whether values match the intent's semantics.
+      No regex or external lookup; rely on reasoning and the context provided.
+      If a field appears ill-formed or ambiguous, mark valid=false and explain briefly.
+    user_template: |
+      Intent: {intent}
+      Candidate fields: {fields}
+      Context text: {text}
+      Memory.short_ctx: {short_ctx}
+
+      Return JSON: {"valid": boolean, "why": string, "overall_confidence": number,
+                    "per_field": {"<field>": {"valid": boolean, "confidence": number, "why": string}}}
+
+  ask_missing_v1:
+    system: |
+      Ask the user for exactly one missing field. Be concise and friendly.
+      Use locale and friendly label if available. Do not include any other content.
+    user_template: |
+      locale: {locale}
+      field: {field}
+      friendly_label: {friendly_label}
+
+      # Expected output: short question text
+
+  confirm_action_v1:
+    system: |
+      Ask for an explicit confirmation before executing a sensitive action.
+      If double-confirm is requested, instruct the user to reply with the exact phrase.
+      Be brief and clear.
+    user_template: |
+      locale: {locale}
+      intent: {intent}
+      summary: {summary}
+      double_confirm_phrase: {double_confirm_phrase}
