@@ -8,4 +8,9 @@ dependencies = [
     "pydantic",
     "faiss-cpu",
     "structlog",
+    "PyYAML",
+    "httpx",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
