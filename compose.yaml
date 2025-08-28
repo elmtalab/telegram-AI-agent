@@ -1,0 +1,20 @@
+version: '3.9'
+services:
+  chat_adapter:
+    build: ./apps/chat_adapter
+    command: uvicorn main:app --reload --port 8001
+  router:
+    build: ./apps/router
+    command: uvicorn main:app --reload --port 8002
+  orchestrator:
+    build: ./apps/orchestrator
+    command: uvicorn main:app --reload --port 8003
+  dispatch_controller:
+    build: ./apps/dispatch_controller
+    command: uvicorn main:app --reload --port 8004
+  simple_dispatcher:
+    build: ./apps/simple_dispatcher
+    command: uvicorn main:app --reload --port 8005
+  media_agent:
+    build: ./apps/agents/media_agent
+    command: uvicorn main:app --reload --port 8010
