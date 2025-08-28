@@ -175,3 +175,229 @@ router:
       fa-IR:
         missing_single: "لطفاً **{field}** را مشخص کنید."
         ambiguous_source: "از فایل قبلی استفاده کنم یا لینکی که گفتید؟"
+
+  expansions:
+    image.generate:
+      - intent: "image.generate"
+    image.describe:
+      - intent: "image.describe"
+    image.remove_bg:
+      - intent: "image.remove_bg"
+    qr.decode:
+      - intent: "qr.decode"
+    barcode.decode:
+      - intent: "barcode.decode"
+    text.summarize:
+      - intent: "text.summarize"
+    text.translate:
+      - intent: "text.translate"
+    tts.speak:
+      - intent: "tts.speak"
+    network.vpn.get:
+      - intent: "network.vpn.get"
+    finance.crypto.price:
+      - intent: "finance.crypto.price"
+    finance.crypto.ohlc:
+      - intent: "finance.crypto.ohlc"
+    finance.fx.rate:
+      - intent: "finance.fx.rate"
+    finance.fx.convert:
+      - intent: "finance.fx.convert"
+    sched.availability.show:
+      - intent: "sched.availability.show"
+    sched.book:
+      - intent: "sched.book"
+    sched.reschedule:
+      - intent: "sched.reschedule"
+    sched.cancel:
+      - intent: "sched.cancel"
+    tutor.chat.correct:
+      - intent: "tutor.chat.correct"
+    music.convert:
+      - intent: "music.convert"
+    music.preview:
+      - intent: "music.preview"
+    music.normalize:
+      - intent: "music.normalize"
+    media.chapters:
+      - intent: "media.ingest_url"
+      - intent: "media.transcript"
+      - intent: "media.chapters"
+    media.quotes:
+      - intent: "media.ingest_url"
+      - intent: "media.transcript"
+      - intent: "media.quotes"
+    media.translate_only:
+      - intent: "media.ingest_url"
+      - intent: "media.transcript"
+      - intent: "text.translate"
+    video.thumbnail:
+      - intent: "video.thumbnail"
+    video.gif:
+      - intent: "video.gif"
+    "ocr+summary":
+      - intent: "ocr.extract"
+      - intent: "ocr.tldr"
+
+  slotfill:
+    enabled: true
+    model: "gpt-5-nano"
+    max_calls_per_turn: 2
+    routes:
+      music.playlist.remove:
+        fields:
+          track_id:
+            type: "id"
+            patterns: ['\bTRK-\d+\b']
+            required: true
+          playlist_id:
+            type: "id"
+            patterns: ['\bPLAY-\d+\b']
+            required: true
+          playlist_name:
+            type: "name"
+            patterns: ['"([^"]+)"', 'playlist\s+([A-Za-z0-9][\w\s\-]+)']
+            required: false
+        allow_names_for_ids: ["playlist_id->playlist_name"]
+
+      sched.book:
+        fields:
+          datetime: { type: "datetime" }
+          date: { type: "date" }
+          time: { type: "time" }
+          attendee: { type: "person|email|phone" }
+
+      music.send:
+        fields:
+          recipient:
+            type: "email|phone|handle"
+            patterns:
+              - '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
+              - '\+?\d[\d\-\s]{6,}\d'
+              - '@\w+'
+
+      sched.reschedule:
+        fields:
+          booking_ref:
+            type: "id"
+            patterns: ['(?:booking|ref(?:erence)?|code|کد)\s*[:\-#]?\s*([A-Za-z0-9_\-]+)']
+            required: true
+          datetime: { type: "datetime" }
+          date: { type: "date|date_fuzzy" }
+          time: { type: "time|time_ampm" }
+
+      network.proxy.get:
+        fields:
+          region:
+            type: "name"
+            patterns:
+              - '\b(US|USA|United\s*States|UK|United\s*Kingdom|DE|Germany|NL|Netherlands|EU|Europe)\b'
+              - '(آمریکا|بریتانیا|انگلیس|آلمان|هلند|اروپا)'
+          purpose:
+            type: "name"
+            patterns:
+              - '\b(stream(?:ing)?|netflix|gaming|privacy|secure|torrent|scrap(?:e|ing))\b'
+              - '(استریم|نتفلیکس|بازی|حریم\s*خصوصی|امنیت|کراول|اسکیریپ)'
+            required: false
+
+      music.inline.search:
+        fields:
+          query:
+            type: "name"
+            patterns:
+              - '(?:songs?|tracks?|music)\s+(?:by|from)\s+([^\n,.]+)'
+              - 'artist\s*:\s*([^\n]+)'
+            required: true
+
+      music.playlist.add:
+        fields:
+          track_id:
+            type: "id"
+            patterns: ['\bTRK-\d+\b']
+            required: true
+          playlist_id:
+            type: "id"
+            patterns: ['\bPLAY-\d+\b']
+            required: false
+          playlist_name:
+            type: "name"
+            patterns: ['"([^"]+)"', 'playlist\s+([A-Za-z0-9][\w\s\-]+)']
+            required: false
+        allow_names_for_ids: ["playlist_id->playlist_name"]
+
+      music.cover.attach:
+        fields:
+          track_id:
+            type: "id"
+            patterns: ['\bTRK-\d+\b']
+            required: true
+
+      video.thumbnail:
+        fields:
+          at:
+            type: "time|time_hhmmss|time_ampm"
+            patterns: ['\b(\d{1,2}:\d{2}(?::\d{2})?)\b', '\b(\d{1,3})s\b']
+            required: true
+
+      video.gif:
+        fields:
+          start:
+            type: "time|time_hhmmss"
+            patterns: ['(\d{1,2}:\d{2}(?::\d{2})?|\d{1,3}s)']
+          end:
+            type: "time|time_hhmmss"
+            patterns: ['(\d{1,2}:\d{2}(?::\d{2})?|\d{1,3}s)']
+
+      qr.generate:
+        fields:
+          text: { type: "quoted_name|name" }
+          url:
+            type: "url"
+            patterns: ['https?://\S+']
+
+      finance.fx.convert:
+        fields:
+          amount:
+            type: "amount"
+            patterns: ['\b(\d+(?:\.\d+)?)\b']
+            required: true
+          from_currency:
+            type: "id"
+            patterns: ['\b([A-Z]{3})\b']
+            required: true
+          to_currency:
+            type: "id"
+            patterns: ['\b([A-Z]{3})\b']
+            required: true
+          date: { type: "date|date_fuzzy" }
+
+      finance.crypto.ticker:
+        fields:
+          from:
+            type: "id"
+            patterns: ['\b([A-Za-z]{2,6})(?=/[A-Za-z]{2,6}\b)']
+          to:
+            type: "id"
+            patterns: ['(?<=\b[A-Za-z]{2,6}/)([A-Za-z]{2,6})\b']
+          from_concat:
+            type: "id"
+            patterns: ['\b([A-Za-z]{2,6})(?=USDT\b|USD\b|EUR\b|BTC\b|ETH\b)']
+          to_concat:
+            type: "id"
+            patterns: ['\b(USDT|USD|EUR|BTC|ETH)\b']
+        ask_user_templates:
+          from: "Base asset? (e.g., BTC)"
+          to: "Quote asset? (e.g., USDT)"
+
+    defaults:
+      email: '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
+      phone: '\+?\d[\d\-\s]{6,}\d'
+      quoted_name: "['\"“”«»]([^'\"“”«»]+)['\"“”«»]"
+      datetime: '\b\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}\b'
+      date: '\b\d{4}-\d{2}-\d{2}\b'
+      time: '\b\d{1,2}:\d{2}\b'
+      time_ampm: '\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b'
+      time_hhmmss: '\b\d{1,2}:\d{2}:\d{2}\b'
+      date_fuzzy: '\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)?\.?\,?\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}\b'
+      url: 'https?://\S+'
+      amount: '\b\d+(?:\.\d+)?\b'

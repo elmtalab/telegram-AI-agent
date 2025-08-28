@@ -3,6 +3,12 @@ agents:
   media_agent:
     families: ["video","music","media"]
     intents_supported:
+      - "media.ingest_url"
+      - "media.transcript"
+      - "media.chapters"
+      - "media.highlights"
+      - "media.quotes"
+      - "link.screenshot"
       - "video.thumbnail"
       - "video.gif"
       - "music.send"
