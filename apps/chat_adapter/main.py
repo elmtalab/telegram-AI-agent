@@ -9,12 +9,12 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from apps.chat_adapter import ChatAdapter
-from apps.orchestrator import Orchestrator
+from apps.orchestrator import AOROrchestrator
 from apps.router import Router
 
 
 router = Router()
-orchestrator = Orchestrator(router)
+orchestrator = AOROrchestrator(router)
 adapter = ChatAdapter(orchestrator, router)
 app = FastAPI()
 

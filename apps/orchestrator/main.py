@@ -8,12 +8,12 @@ but mirror the public API of the production services.
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from apps.orchestrator import Orchestrator
+from apps.orchestrator import AOROrchestrator
 from apps.router import Router
 
 
 router = Router()
-orchestrator = Orchestrator(router)
+orchestrator = AOROrchestrator(router)
 app = FastAPI()
 
 
