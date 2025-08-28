@@ -15,7 +15,7 @@ from apps.router import Router
 
 router = Router()
 orchestrator = Orchestrator(router)
-adapter = ChatAdapter(orchestrator)
+adapter = ChatAdapter(orchestrator, router)
 app = FastAPI()
 
 
