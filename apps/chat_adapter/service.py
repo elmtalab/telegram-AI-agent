@@ -12,8 +12,9 @@ message mapping and returns a new mapping that follows the
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Tuple, Optional
+import time
 import re
 import unicodedata
 
@@ -26,16 +27,31 @@ from lib.config.chat_adapter_loader import AdapterConfig
 
 @dataclass
 class ChatMemory:
-    """Minimal session memory used for stickies.
+    """In‑memory state for a chat session.
 
-    Only a handful of fields are required for the exercises.  The memory keeps
-    track of the last seen file, URL and user text as well as an age counter
-    which allows stickies to expire after a configured number of turns.
+    The adapter keeps track of the most recent attachments and user text as
+    well as a few intent related preferences.  The original stickies used by
+    ``normalize_message`` are retained for backwards compatibility.
     """
 
-    last_file: str | None = None
-    last_url: str | None = None
-    last_text: str | None = None
+    last_voice_file_id: Optional[str] = None
+    last_image_file_id: Optional[str] = None
+    last_doc_file_id: Optional[str] = None
+    last_user_text: Optional[str] = None
+    last_turn_ts: int = field(default_factory=lambda: int(time.time()))
+    pending_key: Optional[str] = None
+    pending_question: Optional[str] = None
+    user_lang_pref: Optional[str] = None  # 'fa' or 'en'
+    intended_pipeline: Optional[str] = None  # 'audio.stt', 'audio.transcribe_translate'
+    intended_target_lang: Optional[str] = None  # 'fa'/'en'
+    # Tutor preferences
+    tutor_target_lang: Optional[str] = None
+    tutor_native_lang: Optional[str] = None
+    tutor_daily_minutes: Optional[int] = None
+    # Legacy sticky fields
+    last_file: Optional[str] = None
+    last_url: Optional[str] = None
+    last_text: Optional[str] = None
     turns_since_update: int = 0
 
     def decay(self, ttl: int) -> None:

@@ -36,6 +36,7 @@ class Router:
 
     config: Any | None = field(default=None)
     config_path: str = "config/router.yaml"
+    lang_hint: str = "fa"
     _impl: Any | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
